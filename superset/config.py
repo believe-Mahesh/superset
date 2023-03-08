@@ -1385,20 +1385,6 @@ RLS_FORM_QUERY_REL_FIELDS: Optional[Dict[str, List[List[Any]]]] = None
 #
 SESSION_COOKIE_HTTPONLY = True  # Prevent cookie from being read by frontend JS?
 SESSION_COOKIE_SECURE = False  # Prevent cookie from being transmitted over non-tls?
-SESSION_COOKIE_SAMESITE = None
-
-PUBLIC_ROLE_LIKE_GAMMA = True
-FEATURE_FLAGS = {
-    "EMBEDDED_SUPERSET": True
-}
-SQLALCHEMY_DATABASE_URI = 'postgresql://postgres:postgres@db:5432/superset'
-
-CORS_OPTIONS = {
-  'supports_credentials': True,
-  'allow_headers': ['*'],
-  'resources':['*'],
-  'origins': ['*']
-}
 
 # Cache static resources.
 SEND_FILE_MAX_AGE_DEFAULT = int(timedelta(days=365).total_seconds())
