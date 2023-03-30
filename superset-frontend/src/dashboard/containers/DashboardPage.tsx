@@ -17,6 +17,7 @@
  * under the License.
  */
 import React, { FC, useEffect, useMemo, useRef } from 'react';
+import { Global } from '@emotion/react';
 import { useHistory } from 'react-router-dom';
 import {
   CategoricalColorNamespace,
@@ -25,6 +26,7 @@ import {
   isFeatureEnabled,
   SharedLabelColorSource,
   t,
+  useTheme,
 } from '@superset-ui/core';
 import pick from 'lodash/pick';
 import { useDispatch, useSelector } from 'react-redux';
@@ -57,6 +59,11 @@ import { DashboardContextForExplore } from 'src/types/DashboardContextForExplore
 import shortid from 'shortid';
 import { RootState } from '../types';
 import { getActiveFilters } from '../util/activeDashboardFilters';
+import {
+  chartContextMenuStyles,
+  filterCardPopoverStyle,
+  headerStyles,
+} from '../styles';
 
 export const DashboardPageIdContext = React.createContext('');
 
@@ -140,6 +147,7 @@ const useSyncDashboardStateWithLocalStorage = () => {
 };
 
 export const DashboardPage: FC<PageProps> = ({ idOrSlug }: PageProps) => {
+  const theme = useTheme();
   const dispatch = useDispatch();
   const history = useHistory();
   const dashboardPageId = useSyncDashboardStateWithLocalStorage();
@@ -271,12 +279,21 @@ export const DashboardPage: FC<PageProps> = ({ idOrSlug }: PageProps) => {
   }, [addDangerToast, datasets, datasetsApiError, dispatch]);
 
   if (error) throw error; // caught in error boundary
-  if (!readyToRender) return <Loading />;
+  if (!readyToRender || !isDashboardHydrated.current) return <Loading />;
 
   return (
-    <DashboardPageIdContext.Provider value={dashboardPageId}>
-      <DashboardContainer />
-    </DashboardPageIdContext.Provider>
+    <>
+      <Global
+        styles={[
+          filterCardPopoverStyle(theme),
+          headerStyles(theme),
+          chartContextMenuStyles(theme),
+        ]}
+      />
+      <DashboardPageIdContext.Provider value={dashboardPageId}>
+        <DashboardContainer />
+      </DashboardPageIdContext.Provider>
+    </>
   );
 };
 
