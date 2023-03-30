@@ -609,17 +609,21 @@ class TestChartApi(SupersetTestCase, ApiOwnersTestCaseMixin, InsertChartMixin):
         """
         Chart API: Test update set new owner implicitly adds logged in owner
         """
-        gamma = self.get_user("gamma")
+        gamma = self.get_user("gamma_no_csv")
         alpha = self.get_user("alpha")
-        chart_id = self.insert_chart("title", [alpha.id], 1).id
-        chart_data = {"slice_name": "title1_changed", "owners": [gamma.id]}
-        self.login(username="alpha")
+        chart_id = self.insert_chart("title", [gamma.id], 1).id
+        chart_data = {
+            "slice_name": (new_name := "title1_changed"),
+            "owners": [alpha.id],
+        }
+        self.login(username=gamma.username)
         uri = f"api/v1/chart/{chart_id}"
         rv = self.put_assert_metric(uri, chart_data, "put")
-        self.assertEqual(rv.status_code, 200)
+        assert rv.status_code == 200
         model = db.session.query(Slice).get(chart_id)
-        self.assertIn(alpha, model.owners)
-        self.assertIn(gamma, model.owners)
+        assert model.slice_name == new_name
+        assert alpha in model.owners
+        assert gamma in model.owners
         db.session.delete(model)
         db.session.commit()
 
@@ -1247,6 +1251,75 @@ class TestChartApi(SupersetTestCase, ApiOwnersTestCaseMixin, InsertChartMixin):
         for res in data["result"]:
             if res["id"] in users_favorite_ids:
                 assert res["value"]
+
+    def test_add_favorite(self):
+        """
+        Dataset API: Test add chart to favorites
+        """
+        chart = Slice(
+            id=100,
+            datasource_id=1,
+            datasource_type="table",
+            datasource_name="tmp_perm_table",
+            slice_name="slice_name",
+        )
+        db.session.add(chart)
+        db.session.commit()
+
+        self.login(username="admin")
+        uri = f"api/v1/chart/favorite_status/?q={prison.dumps([chart.id])}"
+        rv = self.client.get(uri)
+        data = json.loads(rv.data.decode("utf-8"))
+        for res in data["result"]:
+            assert res["value"] is False
+
+        uri = f"api/v1/chart/{chart.id}/favorites/"
+        self.client.post(uri)
+
+        uri = f"api/v1/chart/favorite_status/?q={prison.dumps([chart.id])}"
+        rv = self.client.get(uri)
+        data = json.loads(rv.data.decode("utf-8"))
+        for res in data["result"]:
+            assert res["value"] is True
+
+        db.session.delete(chart)
+        db.session.commit()
+
+    def test_remove_favorite(self):
+        """
+        Dataset API: Test remove chart from favorites
+        """
+        chart = Slice(
+            id=100,
+            datasource_id=1,
+            datasource_type="table",
+            datasource_name="tmp_perm_table",
+            slice_name="slice_name",
+        )
+        db.session.add(chart)
+        db.session.commit()
+
+        self.login(username="admin")
+        uri = f"api/v1/chart/{chart.id}/favorites/"
+        self.client.post(uri)
+
+        uri = f"api/v1/chart/favorite_status/?q={prison.dumps([chart.id])}"
+        rv = self.client.get(uri)
+        data = json.loads(rv.data.decode("utf-8"))
+        for res in data["result"]:
+            assert res["value"] is True
+
+        uri = f"api/v1/chart/{chart.id}/favorites/"
+        self.client.delete(uri)
+
+        uri = f"api/v1/chart/favorite_status/?q={prison.dumps([chart.id])}"
+        rv = self.client.get(uri)
+        data = json.loads(rv.data.decode("utf-8"))
+        for res in data["result"]:
+            assert res["value"] is False
+
+        db.session.delete(chart)
+        db.session.commit()
 
     def test_get_time_range(self):
         """

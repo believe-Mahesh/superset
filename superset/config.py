@@ -188,10 +188,11 @@ CUSTOM_SECURITY_MANAGER = None
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 # ---------------------------------------------------------
 
-# Your App secret key. Make sure you override it on superset_config.py.
+# Your App secret key. Make sure you override it on superset_config.py
+# or use `SUPERSET_SECRET_KEY` environment variable.
 # Use a strong complex alphanumeric string and use a tool to help you generate
 # a sufficiently random sequence, ex: openssl rand -base64 42"
-SECRET_KEY = CHANGE_ME_SECRET_KEY
+SECRET_KEY = os.environ.get("SUPERSET_SECRET_KEY") or CHANGE_ME_SECRET_KEY
 
 # The SQLAlchemy connection string.
 SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(DATA_DIR, "superset.db")
@@ -472,9 +473,12 @@ DEFAULT_FEATURE_FLAGS: Dict[str, bool] = {
     # Enable caching per impersonation key (e.g username) in a datasource where user
     # impersonation is enabled
     "CACHE_IMPERSONATION": False,
+    # Enable caching per user key for Superset cache (not datatabase cache impersonation)
+    "CACHE_QUERY_BY_USER": False,
     # Enable sharing charts with embedding
     "EMBEDDABLE_CHARTS": True,
     "DRILL_TO_DETAIL": False,
+    "DRILL_BY": False,
     "DATAPANEL_CLOSED_BY_DEFAULT": False,
     "HORIZONTAL_FILTER_BAR": False,
     # The feature is off by default, and currently only supported in Presto and Postgres,
@@ -1203,6 +1207,7 @@ def SQL_QUERY_MUTATOR(  # pylint: disable=invalid-name,unused-argument
 # functionality for both the SQL_Lab and Charts.
 MUTATE_AFTER_SPLIT = False
 
+
 # This allows for a user to add header data to any outgoing emails. For example,
 # if you need to include metadata in the header or you want to change the specifications
 # of the email title, header, or sender.
@@ -1245,12 +1250,12 @@ ALERT_REPORTS_WORKING_TIME_OUT_KILL = True
 # creator if either is contained within the list of owners, otherwise the first owner
 # will be used) and finally `THUMBNAIL_SELENIUM_USER`, set as follows:
 # ALERT_REPORTS_EXECUTE_AS = [
-#     ScheduledTaskExecutor.CREATOR_OWNER,
-#     ScheduledTaskExecutor.CREATOR,
-#     ScheduledTaskExecutor.MODIFIER_OWNER,
-#     ScheduledTaskExecutor.MODIFIER,
-#     ScheduledTaskExecutor.OWNER,
-#     ScheduledTaskExecutor.SELENIUM,
+#     ExecutorType.CREATOR_OWNER,
+#     ExecutorType.CREATOR,
+#     ExecutorType.MODIFIER_OWNER,
+#     ExecutorType.MODIFIER,
+#     ExecutorType.OWNER,
+#     ExecutorType.SELENIUM,
 # ]
 ALERT_REPORTS_EXECUTE_AS: List[ExecutorType] = [ExecutorType.SELENIUM]
 # if ALERT_REPORTS_WORKING_TIME_OUT_KILL is True, set a celery hard timeout
@@ -1300,9 +1305,8 @@ WEBDRIVER_AUTH_FUNC = None
 WEBDRIVER_CONFIGURATION: Dict[Any, Any] = {"service_log_path": "/dev/null"}
 
 # Additional args to be passed as arguments to the config object
-# Note: these options are Chrome-specific. For FF, these should
-# only include the "--headless" arg
-WEBDRIVER_OPTION_ARGS = ["--headless", "--marionette"]
+# Note: If using Chrome, you'll want to add the "--marionette" arg.
+WEBDRIVER_OPTION_ARGS = ["--headless"]
 
 # The base URL to query for accessing the user interface
 WEBDRIVER_BASEURL = "http://0.0.0.0:8080/"
