@@ -47,6 +47,7 @@ import { MenuItemTooltip } from '../DisabledMenuItemTooltip';
 import DrillByModal from './DrillByModal';
 import { getSubmenuYOffset } from '../utils';
 import { MenuItemWithTruncation } from '../MenuItemWithTruncation';
+import { Dataset } from '../types';
 
 const MAX_SUBMENU_HEIGHT = 200;
 const SHOW_COLUMNS_SEARCH_THRESHOLD = 10;
@@ -58,25 +59,44 @@ export interface DrillByMenuItemsProps {
   contextMenuY?: number;
   submenuIndex?: number;
   groupbyFieldName?: string;
+  adhocFilterFieldName?: string;
+  onSelection?: (...args: any) => void;
+  onClick?: (event: MouseEvent) => void;
+  openNewModal?: boolean;
+  excludedColumns?: Column[];
 }
+
 export const DrillByMenuItems = ({
   filters,
   groupbyFieldName,
+  adhocFilterFieldName,
   formData,
   contextMenuY = 0,
   submenuIndex = 0,
+  onSelection = () => {},
+  onClick = () => {},
+  excludedColumns,
+  openNewModal = true,
   ...rest
 }: DrillByMenuItemsProps) => {
   const theme = useTheme();
   const [searchInput, setSearchInput] = useState('');
+  const [dataset, setDataset] = useState<Dataset>();
   const [columns, setColumns] = useState<Column[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [currentColumn, setCurrentColumn] = useState();
 
-  const openModal = useCallback(column => {
-    setCurrentColumn(column);
-    setShowModal(true);
-  }, []);
+  const handleSelection = useCallback(
+    (event, column) => {
+      onClick(event);
+      onSelection(column, filters);
+      setCurrentColumn(column);
+      if (openNewModal) {
+        setShowModal(true);
+      }
+    },
+    [filters, onClick, onSelection, openNewModal],
+  );
   const closeModal = useCallback(() => {
     setShowModal(false);
   }, []);
@@ -104,6 +124,7 @@ export const DrillByMenuItems = ({
         endpoint: `/api/v1/dataset/${datasetId}`,
       })
         .then(({ json: { result } }) => {
+          setDataset(result);
           setColumns(
             ensureIsArray(result.columns)
               .filter(column => column.groupby)
@@ -111,6 +132,11 @@ export const DrillByMenuItems = ({
                 column =>
                   !ensureIsArray(formData[groupbyFieldName]).includes(
                     column.column_name,
+                  ) &&
+                  column.column_name !== formData.x_axis &&
+                  ensureIsArray(excludedColumns)?.every(
+                    excludedCol =>
+                      excludedCol.column_name !== column.column_name,
                   ),
               ),
           );
@@ -119,7 +145,13 @@ export const DrillByMenuItems = ({
           supersetGetCache.delete(`/api/v1/dataset/${datasetId}`);
         });
     }
-  }, [formData, groupbyFieldName, handlesDimensionContextMenu, hasDrillBy]);
+  }, [
+    excludedColumns,
+    formData,
+    groupbyFieldName,
+    handlesDimensionContextMenu,
+    hasDrillBy,
+  ]);
 
   const handleInput = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation();
@@ -218,7 +250,7 @@ export const DrillByMenuItems = ({
                   key={`drill-by-item-${column.column_name}`}
                   tooltipText={column.verbose_name || column.column_name}
                   {...rest}
-                  onClick={() => openModal(column)}
+                  onClick={e => handleSelection(e, column)}
                 >
                   {column.verbose_name || column.column_name}
                 </MenuItemWithTruncation>
@@ -231,13 +263,17 @@ export const DrillByMenuItems = ({
           )}
         </div>
       </Menu.SubMenu>
-      <DrillByModal
-        column={currentColumn}
-        filters={filters}
-        formData={formData}
-        onHideModal={closeModal}
-        showModal={showModal}
-      />
+      {showModal && (
+        <DrillByModal
+          column={currentColumn}
+          filters={filters}
+          formData={formData}
+          groupbyFieldName={groupbyFieldName}
+          adhocFilterFieldName={adhocFilterFieldName}
+          onHideModal={closeModal}
+          dataset={dataset!}
+        />
+      )}
     </>
   );
 };
